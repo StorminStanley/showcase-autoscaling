@@ -26,6 +26,9 @@ This base demo is setup using:
   - New Relic in particular requires an API endpoint to be setup. If you provision in Vagrant locally, you may need to setup `ngrok` or ensure the NR hook makes it to your machine. The endpoint should be: http://<hostname>:10001/st2/nrhook
 4. Start Playing!
 
+To become familiar with how StackStorm works, we recommend that you take a look at our Getting Started video at
+http://stackstorm.com/start-now/
+
 # Requirements:
 
 * Vagrant - [version 1.7.2 or higher](https://www.vagrantup.com/downloads.html). (See https://github.com/mitchellh/vagrant/issues/3769)
