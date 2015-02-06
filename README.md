@@ -1,11 +1,30 @@
-st2workroom
+Cloud Autoscaling Workflow
 =========
 
-A full fledged development environment for working with StackStorm. This project allows you to:
+This project highlights the use of StackStorm in a generic, deployable, Autoscale Solution. Using
+this pipeline, you should be able to use StackStorm to manage and grow any supported cloud, incuding
+(but not limited to...)
 
-* Spin up a test environment to play with StackStorm (`st2express`)
-* Spin up a development environment to work with StackStorm (`st2dev`)
-* Begin building infrastructure patterns using pre-configured Config Management tools
+- AWS
+- DigitalOcean
+- LibCloud supported platforms
+- RackSpace
+
+This base demo is setup using:
+
+* New Relic for APM
+* Chef for server provisioning
+* RackSpace Cloud
+
+# Getting Started
+
+1. Configure all the integrations.
+  - You will need to gather API keys and apply them to the file `hieradata/role/st2express`. Replace any dummy value with real API keys.
+2. `vagrant up`
+  - Start up the StackStorm server. This should take a moment to provision, but it will download and setup StackStorm and all supporting packs/workflows.
+3. Configure upstream
+  - New Relic in particular requires an API endpoint to be setup. If you provision in Vagrant locally, you may need to setup `ngrok` or ensure the NR hook makes it to your machine. The endpoint should be: http://<hostname>:10001/st2/nrhook
+4. Start Playing!
 
 # Requirements:
 
