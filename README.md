@@ -29,6 +29,22 @@ This base demo is setup using:
 To become familiar with how StackStorm works, we recommend that you take a look at our Getting Started video at
 http://stackstorm.com/start-now/
 
+## But I don't want to use Vagrant!
+
+Totally fine! This pack is also configured with a masterless-puppet install to bootstrap the StackStorm server
+on any platform you so choose. To install this on an arbitrary server, simply do the following....
+
+1. Clone this repository to your server in the `/opt/puppet` directory.
+  - `git clone https://github.com/stackstorm-showcase/autoscaling.git /opt/puppet`
+2. Make sure all the pre-requsites are installed.
+  - `/opt/puppet/script/bootstrap-puppet`
+  - `/opt/puppet/script/bootstrap-linux`
+3. Configure upstream
+  - New Relic in particular requires an API endpoint to be setup. If you provision in Vagrant locally, you may need to setup `ngrok` or ensure the NR hook makes it to your machine. The endpoint should be: http://<hostname>:10001/st2/nrhook
+4. Run Puppet
+  - `role=st2express /opt/puppet/script/puppet-apply`
+5. Start Playing!
+
 # Requirements:
 
 * Vagrant - [version 1.7.2 or higher](https://www.vagrantup.com/downloads.html). (See https://github.com/mitchellh/vagrant/issues/3769)
