@@ -26,6 +26,9 @@ This base demo is setup using:
   - New Relic in particular requires an API endpoint to be setup. If you provision in Vagrant locally, you may need to setup `ngrok` or ensure the NR hook makes it to your machine. The endpoint should be: http://<hostname>:10001/st2/nrhook
 4. Start Playing!
 
+NOTE: In the event you see Puppet provisioner warnings, simply run `vagrant provision`. There is an occasional
+race condition within Puppet we are tracking down that is simply solved with another run.
+
 To become familiar with how StackStorm works, we recommend that you take a look at our Getting Started video at
 http://stackstorm.com/start-now/
 
@@ -44,6 +47,9 @@ on any platform you so choose. To install this on an arbitrary server, simply do
 4. Run Puppet
   - `role=st2express /opt/puppet/script/puppet-apply`
 5. Start Playing!
+
+NOTE: In the event you see Puppet provisioner warnings, simply run `/usr/bin/puprun` to run Puppet again.
+There is an occasional race condition within Puppet we are tracking down that is simply solved with another run.
 
 # Requirements:
 
