@@ -7,9 +7,34 @@ environment or various cloud providers
 
 # Getting Started
 
-To try this out, you will need to make a few configuration changes. To aid in deployment, this has been
-minimized to a single file (`hieradata/common.yaml`). Inside this file, you should see all attributes
-under the `st2::pack` key and fill in with your specific config values.
+To try this out, you will need to make a few configuration changes. These are listed below:
+
+* Step 1: Configure Packs
+  - All of the necessary configuration exists in the `hieradata/common.yaml` file. Take a peek in there,
+    and fill in any API keys that are left blank.
+* Step 2: Setup SSH Keys
+  - The SSH Key used in this example is pulled from the Key/Value store. You will need to set the `ssh_public_key`
+    parameter. This SSH key should be the same key used by StackStorm to log into remote hosts. 
+  - Set via WebUI: Head to http://<hostname>:9101/webui. Navigate to the `st2.kv.set` action, and enter
+    `ssh_public_key` for the key, and you SSH key for the value
+  - Set via CLI: From the StackStorm server, run the command `st2 key set ssh_public_key "<ssh_key>"`
+* Step 3: Point New Relic to StackStorm
+  - This can only be done via the New Relic Web UI. Log into the website, navigate to Webhooks, and enter
+    http://<hostname>:10001/st2/nrhook
+* Step 4: Create some AutoScale Groups and Rules!
+* Step 5: Profit
+
+## Trying it out
+
+If you would like to try this demonstration, the following commands are available to you via ChatOps. You
+will need to invite your bot user to the room you plan on testing. (By default, the room is #bot-testing)
+
+* `!asg create name=XXX domain=YYY` - Creates a new autoscaling group.
+* `!asg node add asg=XXX` - Add a node to an ASG
+* `!asg expand asg=XXX` - Manually expand an ASG
+* `!asg node delete name=ZZZ asg=XXX` - Delete a node and its autoscaling group association
+* `!asg deflate asg=XXX` - Manually deflate an ASG
+* `!asg delete name=XXX` - Delete an ASG and all resources belonging to it
 
 ## Overview
 
@@ -28,7 +53,7 @@ There are several reasons to leverage an autoscaling cloud. One of the more comm
 * Phase 3: Recover and Stand Down
 * Phase 4: Decommission an autoscaling group
 
-In Phase 1, StackStorm would receive an event from a monitoring system, in this case New Relic. The monitoring system should tell us what application or infrastructure component is impacted, and how it is impacted (is it a warning alert in that the system has some time to respond before things go poorly, or are we already in a critical scenario where immediate action is needed?). From Phase 1, systems are provisioned in order to alleviate pressure. This phase may also include some escalation policies to let folks know of the situation, 
+In Phase 1, StackStorm would receive an event from a monitoring system, in this case New Relic. The monitoring system should tell us what application or infrastructure component is impacted, and how it is impacted (is it a warning alert in that the system has some time to respond before things go poorly, or are we already in a critical scenario where immediate action is needed?). From Phase 1, systems are provisioned in order to alleviate pressure. This phase may also include some escalation policies to let folks know of the situation.
 
 Phase 2 deals with attempting to quantify the recovery state of an application. A critical incident may still be underway, but at this point additional resources are allocated to manage the load. During this phase, StackStorm needs to stay on top of things to make sure that if another tipping point is reached with resources that it is ready to provide additional relief as necessary. Likewise, StackStorm needs to be smart enough to know when an event has ceased, and when things can start cooling down.
 
