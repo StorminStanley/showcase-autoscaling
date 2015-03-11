@@ -79,6 +79,15 @@ module Vagrant
           'region'       => 'nyc3',
           'size'         => '1gb',
         },
+	      'rackspace'       => {
+          'username'        => ENV['RS_USERNAME'],
+          'api_key'         => ENV['RS_API_KEY'],
+          'image'           => /Ubuntu/,
+          'flavor'          => /2GB/,
+          'region'          => ENV['RS_REGION'] || :iad,
+          'ssh_key_path'    => ENV['RS_SSH_KEY_PATH'] || '~/.ssh/id_rsa',
+          'public_key_path' => ENV['RS_PUBLIC_KEY_PATH'] || '~/.ssh/id_rsa.pub',
+        },
         'ssh'      => {
           'pty'           => false,
           'forward_agent' => true,
@@ -149,6 +158,17 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |vagrant|
         @local_provision              = false
       end
 
+      n.vm.provider 'rackspace' do |rs, override|
+       override.ssh.private_key_path = config['rackspace']['ssh_key_path']
+        rs.username                   = config['rackspace']['username']
+        rs.api_key                    = config['rackspace']['api_key']
+        rs.flavor                     = config['rackspace']['flavor']
+        rs.image                      = config['rackspace']['image']
+        rs.rackspace_region           = config['rackspace']['region']
+        rs.public_key_path            = config['rackspace']['public_key_path']
+        @synced_folder_type           = 'rsync'
+        @local_provision              = false
+      end
 
       if config.has_key?('private_networks') && @local_provision
         config['private_networks'].each do |nic|
@@ -156,7 +176,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |vagrant|
         end
       end
 
-      # Sync up any file mounts for you
+      # Sync up any file mounts for you, but only on the local machine.
+      # Mounts on server clouds ignore file mounts
       if config.has_key?('mounts') && @local_provision
         config['mounts'].each do |mount|
           vm_mount, local_mount = mount.split(/:/)
@@ -180,7 +201,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |vagrant|
 
           # Do not update Gems/Puppetfile/Environments each run
           export generate_all_environments=0
-          export cache_libraries=1
 
           # Pass through Debug Commands
           export debug=#{ENV['debug']}

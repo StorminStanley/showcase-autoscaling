@@ -1,206 +1,89 @@
-Cloud Autoscaling Workflow
+Cloud Autoscaling
 =========
 
-This project highlights the use of StackStorm in a generic, deployable, Autoscale Solution. Using
-this pipeline, you should be able to use StackStorm to manage and grow any supported cloud, incuding
-(but not limited to...)
-
-- AWS
-- DigitalOcean
-- LibCloud supported platforms
-- RackSpace
-
-This base demo is setup using:
-
-* New Relic for APM
-* Chef for server provisioning
-* RackSpace Cloud
+This project highligts the use of StackStorm in a generic, autoscaling pipeline. It is built off of
+[st2-workroom](https://github.com/StackStorm/st2-workroom) and can be deployed in a local Vagrant
+environment or various cloud providers
 
 # Getting Started
 
-1. Configure all the integrations.
-  - You will need to gather API keys and apply them to the file `hieradata/role/st2express`. Replace any dummy value with real API keys.
-2. `vagrant up`
-  - Start up the StackStorm server. This should take a moment to provision, but it will download and setup StackStorm and all supporting packs/workflows.
-3. Configure upstream
-  - New Relic in particular requires an API endpoint to be setup. If you provision in Vagrant locally, you may need to setup `ngrok` or ensure the NR hook makes it to your machine. The endpoint should be: http://<hostname>:10001/st2/nrhook
-4. Start Playing!
+To try this out, you will need to make a few configuration changes. These are listed below:
 
-NOTE: In the event you see Puppet provisioner warnings, simply run `vagrant provision`. There is an occasional
-race condition within Puppet we are tracking down that is simply solved with another run.
+* Step 1: Configure Packs
+  - All of the necessary configuration exists in the `hieradata/common.yaml` file. Take a peek in there,
+    and fill in any API keys that are left blank.
+* Step 2: Setup SSH Keys
+  - The SSH Key used in this example is pulled from the Key/Value store. You will need to set the `ssh_public_key`
+    parameter. This SSH key should be the same key used by StackStorm to log into remote hosts. 
+  - Set via WebUI: Head to http://<hostname>:9101/webui. Navigate to the `st2.kv.set` action, and enter
+    `ssh_public_key` for the key, and you SSH key for the value
+  - Set via CLI: From the StackStorm server, run the command `st2 key set ssh_public_key "<ssh_key>"`
+* Step 3: Point New Relic to StackStorm
+  - This can only be done via the New Relic Web UI. Log into the website, navigate to Webhooks, and enter
+    http://<hostname>:10001/st2/nrhook
+* Step 4: Create some AutoScale Groups and Rules!
+* Step 5: Profit
 
-To become familiar with how StackStorm works, we recommend that you take a look at our Getting Started video at
-http://stackstorm.com/start-now/
+## Trying it out
 
-## But I don't want to use Vagrant!
+If you would like to try this demonstration, the following commands are available to you via ChatOps. You
+will need to invite your bot user to the room you plan on testing. (By default, the room is #bot-testing)
 
-Totally fine! This pack is also configured with a masterless-puppet install to bootstrap the StackStorm server
-on any platform you so choose. To install this on an arbitrary server, simply do the following....
+* `!asg create name=XXX domain=YYY` - Creates a new autoscaling group.
+* `!asg node add asg=XXX` - Add a node to an ASG
+* `!asg expand asg=XXX` - Manually expand an ASG
+* `!asg node delete name=ZZZ asg=XXX` - Delete a node and its autoscaling group association
+* `!asg deflate asg=XXX` - Manually deflate an ASG
+* `!asg delete name=XXX` - Delete an ASG and all resources belonging to it
 
-1. Clone this repository to your server in the `/opt/puppet` directory.
-  - `git clone https://github.com/stackstorm-showcase/autoscaling.git /opt/puppet`
-2. Make sure all the pre-requsites are installed.
-  - `/opt/puppet/script/bootstrap-puppet`
-  - `/opt/puppet/script/bootstrap-linux`
-3. Configure upstream
-  - New Relic in particular requires an API endpoint to be setup. If you provision in Vagrant locally, you may need to setup `ngrok` or ensure the NR hook makes it to your machine. The endpoint should be: http://<hostname>:10001/st2/nrhook
-4. Run Puppet
-  - `role=st2express /opt/puppet/script/puppet-apply`
-5. Start Playing!
-
-NOTE: In the event you see Puppet provisioner warnings, simply run `/usr/bin/puprun` to run Puppet again.
-There is an occasional race condition within Puppet we are tracking down that is simply solved with another run.
-
-# Requirements:
-
-* Vagrant - [version 1.7.2 or higher](https://www.vagrantup.com/downloads.html). (See https://github.com/mitchellh/vagrant/issues/3769)
-
-## Project Goals
+## Overview
 
 The goal of this project is to have a workspace that allows you to develop infrastructure in conjuction
 with StackStorm, or even work on the StackStorm product itself. This project also serves as a template
 to be used to begin building out and deploying infrastructure using your favorite Configuration Management
 tool in conjunction with StackStorm
 
-Currently, the project has support for the following Config Management Tools:
+## Autoscaling Process
 
-* Puppet
+There are several reasons to leverage an autoscaling cloud. One of the more common use-cases include adding additional capacity due to a surge in demand or failure of existing resources. This is where we set our sights: How could StackStorm help facilitate the management of additional capacity when needed? So, we broke down the problem into the smallest components, and set our sights on potential solutions. In short, it broke down to a few phases...
 
-Additional workrooms will be created for the following languages:
+* Phase 0: Setting up an autoscaling group
+* Phase 1: Systems Failing
+* Phase 2: Monitor the Situation
+* Phase 3: Recover and Stand Down
+* Phase 4: Decommission an autoscaling group
 
-* Chef
-* Ansible
-* Salt
+In Phase 1, StackStorm would receive an event from a monitoring system, in this case New Relic. The monitoring system should tell us what application or infrastructure component is impacted, and how it is impacted (is it a warning alert in that the system has some time to respond before things go poorly, or are we already in a critical scenario where immediate action is needed?). From Phase 1, systems are provisioned in order to alleviate pressure. This phase may also include some escalation policies to let folks know of the situation.
 
-## Usage
-### Vagrant Stacks
+Phase 2 deals with attempting to quantify the recovery state of an application. A critical incident may still be underway, but at this point additional resources are allocated to manage the load. During this phase, StackStorm needs to stay on top of things to make sure that if another tipping point is reached with resources that it is ready to provide additional relief as necessary. Likewise, StackStorm needs to be smart enough to know when an event has ceased, and when things can start cooling down.
 
-Underpinning Vagrant is something referred to as Vagrant Stacks. This pattern is another attempt by the
-pattern used in `vagrant-stroller`. In a nutshell, a user should be able to compose entire infrastructure
-stacks quickly and easily with Vagrant, all using potentially different options.
+Phase 3 is all about cleanup. An event is over, and now it's time to return to normal. StackStorm needs to have an understanding of what normal means, and how to safely get there with minimal to no disruption on the part of users.
 
-To accomplish this, Vagrant has been extended to read from a `stack` file. A `stack` file is simply
-a YAML file defining what a given infrastructure stack looks like. You can add as many stacks
-as you would like, and switch between them with minimal problems.
+We started our exploration detailing how we imagined the autoscaling workflow would be executed, and added creation and deletion actions on both ends of the process to ensure completeness. In the interest of brevity, a ton of details have been omitted. Those more inclined to dig into additional details can find more about our thought processes and how we put this together can take a look at https://gist.github.com/jfryman/2345a6c6b1abb312d8cb. The key takeaway though is that we were able to abstractly discuss the logic of how we expected the workflow to run without ever discussing tooling, which in turn allowed us to identify more  This allowed us to better understand what data from our tools that we might need while integrating with the different parts of the stack.
 
-An example Vagrant Stack looks like:
-```yaml
----
-# Defaults can be defined and reused with YAML anchors
-defaults: &defaults
-  domain: stackstorm.net
-  memory: 2048
-  cpus: 1
-  box: puppetlabs/ubuntu-14.04-64-puppet
-# Define as many hosts as you would like. Deep merged in!
-st2server:
-  <<: *defaults  # Take advantage of YAML anchors and inherit
-  hostname: st2server
-  # Any number of facts available to the server can be set here
-  puppet:
-    facts: # Apply facts to the guest OS
-      role: st2server
-  mounts:
-    # Mounts can be in a temp directory
-    - /opt/stackstorm
-    # Or with an absolute path
-    - "/opt/st2web:/tmp/st2web"
-  # Any number of private networks can be defined
-  private_networks:
-    - 10.20.30.2
-```
+## Architecture and Integrations
 
-To switch between a stack, simply change the Environment variable `stack` to something else. This
-can be done at runtime...
+At an abstract level, the workflow is very easy. But, the devil is always in the details, and with autoscaling this is doubly so. We needed to break down all the individual components used to create a new system ready to process requests and start building integrations for them. Considering the full lifecycle of a machine, we needed to:
 
-```
-stack=cicd vagrant status
-```
+* Provisioning new VMs
+* Register a VM with DNS
+* Applying configuration profiles to new machines
+* Receive notifications that an application is misbehaving
+* Receive notifications that an application has recovered
+* Add nodes to load balancer
+* Remove nodes from load balancer
+* Removing a VM from DNS
+* Destroying a VM
 
-... exported for a session ...
+So, let's walk through how it all works.
 
-```
-# All subsequent actions for the shell session will be this stack
-export stack=cicd
-vagrant status
-```
+![architecture_diagram](https://cloud.githubusercontent.com/assets/20028/6277282/339edbda-b842-11e4-9638-750dda437ab6.jpg)
 
-... or set it up to stay configured indefinetely. This is done via the `dotenv` gem. Simply edit
-the file `.env` in the top-level of this project, and add the line `stack=cicd` and you're done!
+To begin with, we have a set of actions that is responsible for Phase 0: Setting up a new Auto-Scaling group. This process is responsible for creating a new association within StackStorm, and deciding what flavor/size of cloud compute nodes that will be set-up. These values are all stored in StackStorm's internal datastore. https://github.com/StackStorm/st2incubator/blob/master/packs/autoscale/actions/workflows/asg_create.yaml
 
-See more examples in the `stacks` directory at the top-level of this project.
+Then, we wait. At some point, our application will fail. In our case, we even developed a fun new application that allows us to simulate App and Server errors. New Relic has four events that we're going to keep an eye out for - looking to see if an application or server has entered a critical state, and the corresponding recovery event. These events are sent to StackStorm via NewRelic's WebHook API, and processed as triggers, and then matched to rules like this: https://raw.githubusercontent.com/StackStorm/st2incubator/master/packs/autoscale/rules/newrelic_failure_alert.yaml.
 
-### Supported Vagrant Objects
+Depending on the received event (Alert/Recovery), things go into action. In the event of a alert, StackStorm will set the alert state for the given application to 'Active'. This is used with the governor which I'll touch upon in a moment. Then, StackStorm jumps into action by kicking off adding as many new nodes to our Autoscale group as we specified at creation. This workflow is responsible for adding additional nodes, making sure they have been provisioned with Chef, and also adding the nodes to DNS and the Load Balancer. Finally, as all of these events fire, we send out ChatOps notifications to Slack to keep all the admins informed about what is happening within StackStorm. This workflow is articulated at https://github.com/StackStorm/st2incubator/blob/master/packs/autoscale/actions/workflows/asg_add_node.yaml.
 
-* Hostname [`hostname`]
-* Domain [`domain`]
-* Memory [`memory`]
-* Private Networks [`private_networks`]
-* Box name [`box`]
-* Box URL [`box_url`]
-* Puppet Facts [`puppet/facts`]
-* Mounts [`mounts`]
+All the while, another internal sensor that we call a TimerSensor is running, polling every 30 seconds. Each interval, the governor looks at the state of all AutoScale group alert statuses to decide whether or not additional nodes need to be created and added to the autoscale group. It does this by looking for any AutoScale groups that are in alert state, and attempts to add additional capacity if the right conditions are met. A sort of blunt sword throttling is in place for the first pass - the governor evaluates the time since the last scale event and responds accordingly. The same logic happens in reverse, but at a much slower rate (longer duration between deletions, fewer machines destroyed at a time).
 
-### Digital Ocean Provisioning
-
-In addition to having constructs to manage a `virtualbox` or `vmware_desktop` image, Vagrant Stacks
-also supports using DO as a provisioner. To do this, you must set the following environment variables:
-
-* `DO_SSH_KEY_PATH` - Path to SSH key used to log into servers
-* `DO_TOKEN` - Digital Ocean Token used to provision servers
-
-Then, in a Vagrant Stack, you can specify the following values:
-
-```yaml
-...
-  do:
-    image: '14.04 x64'
-    region: nyc3
-    size: 1gb
-```
-
-Refer to https://www.digitalocean.com/community/tutorials/how-to-use-digitalocean-as-your-provider-in-vagrant-on-an-ubuntu-12-10-vps
-for more information on available options
-
-## Provisioners
-
-Support for many provisioners out-of-the box with the ability to install `st2`, and perform basic
-tasks (install packages, configure users, setup CM downloads, etc) is a goal of this project. To
-that end, you can change also at runtime the provisioner used to provision a server. Set the
-environment variable `provisioner` at runtime, or in the `.env` file as outlined in the overview.
-
-### `puppet-agent`
-
-A script is copied to `/usr/bin/puprun`, which will be used to do branch updates based on upstream `git`,
-and act as the masterless executor.
-
-Puppet can run a series of environments, covered by `git` branching. To deploy a specific branch, simply
-set the environment variable `environment` and off you go!
-
-Example:
-```
-environment=myawesomechange puprun
-```
-
-The node will stay on the `myawesomechange` branch until:
-* The branch is deleted from upstream, where it will automatically revert back to `production`, or...
-* You specify another branch to run as illustrated above
-
-#### Puppet Environments
-
-Vagrant also able to be super flexible. By default, a branch known as `current_working_directory` is
-created and used as the environment for Puppet to run in. This prevents you from having to `git commit`
-and push upstream to make and test local changes.
-
-Vagrant has the ability to mock out different nodes, as well as different environments. Simply use the
-`hostname` and `environment` variables as appropriate.
-
-Vagrant also has the ability to dynamically switch out Vagrant Baseboxes. Use the `box` environment
-variable to change it up. (More details can be found inside the `Vagrantfile`)
-
-Example:
-```
-hostname=ops001 box=fedora vagrant up
-```
-
-The node will remain named `ops001.stackstorm.net` and running on Fedora until it is destroyed
