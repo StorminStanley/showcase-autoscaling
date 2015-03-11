@@ -9,3 +9,4 @@ shared
 *.rpmnew
 current_environment
 mounts/*
+environments/*
