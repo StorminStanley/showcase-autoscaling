@@ -1,3 +1,48 @@
 ---
 classes:
   - 'puppet::masterless'
+
+# StackStorm Configuration
+st2::version: 0.8.2
+st2::mistral_git_branch: st2-0.8.1
+
+st2::packs:
+  autoscale:
+    ensure: enabled
+    repo_url: https://github.com/stackstorm/st2incubator.git
+  debian:
+    ensure: enabled
+    repo_url: https://github.com/stackstorm/st2incubator.git
+  chef:
+    ensure: enabled
+  rackspace:
+    ensure: enabled
+    config:
+      username: <fill me in>
+      api_key: <fill me in>
+      region: IAD
+      debug: false
+  st2:
+    ensure: enabled
+  linux:
+    ensure: present
+  slack:
+    ensure: present
+    config:
+      post_message_action:
+        webhook_url: <add webhook url>
+        username: stanley
+        icon_emoji: ':panda_face:'
+      sensor:
+        token: <fill me in>
+        strip_formatting: true
+  newrelic:
+    ensure: present
+    config:
+      api_url: "https://api.newrelic.com/v2/"
+      api_key: <fill me in>
+      sensor_config:
+        host: "0.0.0.0"
+        port: 10001
+        url: "/st2/nrhook/"
+        normal_report_delay: 0
