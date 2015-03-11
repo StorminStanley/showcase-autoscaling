@@ -2,7 +2,6 @@ ssl/*
 .bundler
 .puppetfile
 vendor/bundle
-environments/*
 .bundle
 .r10k.conf.swp
 graphs
