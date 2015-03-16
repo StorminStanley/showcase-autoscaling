@@ -18,8 +18,8 @@ st2::packs:
   rackspace:
     ensure: enabled
     config:
-      username: <fill me in>
-      api_key: <fill me in>
+      username: jfryman
+      api_key: 6272d144cc3f4182bca045b0e6141d93
       region: IAD
       debug: false
   st2:
@@ -30,19 +30,21 @@ st2::packs:
     ensure: present
     config:
       post_message_action:
-        webhook_url: <add webhook url>
-        username: stanley
+        webhook_url: https://hooks.slack.com/services/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
+        username: fred
         icon_emoji: ':panda_face:'
       sensor:
-        token: <fill me in>
+        token: xoxb-3580025709-UxidrJiwmTEOWTyG046ArDzA
         strip_formatting: true
   newrelic:
     ensure: present
     config:
       api_url: "https://api.newrelic.com/v2/"
-      api_key: <fill me in>
+      api_key: "a5a9aac03ec515abadee952030ce75cf62a1514a191f9c3"
       sensor_config:
         host: "0.0.0.0"
         port: 10001
         url: "/st2/nrhook/"
         normal_report_delay: 0
+
+

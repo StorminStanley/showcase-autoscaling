@@ -209,6 +209,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |vagrant|
           #{config['puppet']['facts'].collect { |k,v| "export FACTER_#{k}=#{v}"}.join("\n")}
           export FACTER_stack=#{@stack.stack}
           /opt/puppet/script/puppet-apply
+
+          sleep 5
+          st2 run packs.load register=all
 EOF
       else
         puts "Unsupported provisioner: #{PROVISIONER}. Skipping..."
