@@ -35,8 +35,8 @@ will need to invite your bot user to the room you plan on testing. (By default, 
 * `!asg node delete name=ZZZ asg=XXX` - Delete a node and its autoscaling group association
 * `!asg deflate asg=XXX` - Manually deflate an ASG
 * `!asg delete name=XXX` - Delete an ASG and all resources belonging to it
-* `!asg simulate crit` - Simulate NewRelic critical event.
-* `!asg simulate recovery` - Simulate NewRelic recovery event.
+* `!asg simulate crit` - Simulate NewRelic critical event for the application named `Default application`.
+* `!asg simulate recovery` - Simulate NewRelic recovery event for the application named `Default application`.
 
 ## Overview
 
