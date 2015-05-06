@@ -1,0 +1,32 @@
+### User configurable settings
+## Place any user-configurable settings here.
+
+## StackStorm Versions
+# st2::version: 0.8.3
+# st2::mistral_git_branch: st2-0.8.1
+
+## Stanley User Configuration
+# st2::stanley::ssh_public_key: XXXXXX
+# st2::stanley::ssh_key_type: ssh-rsa
+# st2::stanley::ssh_private_key: XXXXXX
+
+## Hubot Configuration
+# hubot::adapter: slack
+# hubot::build_deps:
+#  - libxml2-devel
+#  - gcc-c++
+# hubot::env_export:
+#  HUBOT_LOG_LEVEL: DEBUG
+# hubot::dependencies:
+#  hubot: ">= 2.6.0 < 3.0.0"
+#  "hubot-scripts": ">= 2.5.0 < 3.0.0"
+
+## User Configuration
+# users:
+#   manas:
+#     uid: 700
+#     gid: 700
+#     sshkey: XXXXXX
+#     sshkeytype: ssh-rsa
+#     shell: /bin/bash
+#     admin: true

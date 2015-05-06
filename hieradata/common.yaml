@@ -2,11 +2,15 @@
 classes:
   - 'puppet::masterless'
 
-# StackStorm Configuration
-st2::version: 0.8.2
-st2::mistral_git_branch: st2-0.8.1
-
 st2::packs:
+  hubot:
+    ensure: present
+    repo_url: https://github.com/StackStorm/st2incubator.git
+    config:
+      endpoint: "http://localhost:8081"
+  deploy:
+    ensure: present
+    repo_url: https://github.com/StackStorm/st2incubator.git
   autoscale:
     ensure: enabled
     repo_url: https://github.com/stackstorm/st2incubator.git
@@ -46,5 +50,3 @@ st2::packs:
         port: 10001
         url: "/st2/nrhook/"
         normal_report_delay: 0
-
-

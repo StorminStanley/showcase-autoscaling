@@ -3,14 +3,19 @@
 
 ## Need to install dotenv in your vagrant environment
 ## vagrant plugin install vagrant-dotenv
-['dotenv', 'deep_merge'].each do |plugin|
-  system("vagrant plugin install #{plugin}") unless Vagrant.has_plugin?(plugin)
+REQUIRED_PLUGINS = %w(dotenv deep_merge)
+exit unless REQUIRED_PLUGINS.all? do |plugin|
+  Vagrant.has_plugin?(plugin) || (
+  puts "The #{plugin} plugin is required. Please install it with:"
+  puts "$ vagrant plugin install #{plugin}"
+  false
+  )
 end
 
 begin
   Dotenv.load
 rescue => e
-  puts 'problem loading dotenv'.
+  puts 'problem loading dotenv'
   puts e
   exit 1
 end
@@ -69,9 +74,10 @@ module Vagrant
             'datacenter' => ENV['container'].nil? ? 'vagrant' : 'docker',
           },
         },
-        'hostname' => ENV['hostname'] || 'vagrant',
-        'box'      => ENV['box'].nil? ? VM_BOXES[:ubuntu] : VM_BOXES[ENV['box'].to_sym],
-        'domain'   => ENV['domain'] || 'stackstorm.net',
+        'hostname'  => ENV['hostname'] || 'vagrant',
+        'box'       => ENV['box'].nil? ? VM_BOXES[:ubuntu] : VM_BOXES[ENV['box'].to_sym],
+        'domain'    => ENV['domain'] || 'stackstorm.net',
+        'sync_type' => ENV['sync_type'] || 'rsync',
 	      'do'       => {
           'ssh_key_path' => ENV['DO_SSH_KEY_PATH'] || '~/.ssh/id_rsa',
           'token'        => ENV['DO_TOKEN'],
@@ -79,14 +85,14 @@ module Vagrant
           'region'       => 'nyc3',
           'size'         => '1gb',
         },
-	      'rackspace'       => {
-          'username'        => ENV['RS_USERNAME'],
-          'api_key'         => ENV['RS_API_KEY'],
-          'image'           => /Ubuntu/,
-          'flavor'          => /2GB/,
-          'region'          => ENV['RS_REGION'] || :iad,
-          'ssh_key_path'    => ENV['RS_SSH_KEY_PATH'] || '~/.ssh/id_rsa',
-          'public_key_path' => ENV['RS_PUBLIC_KEY_PATH'] || '~/.ssh/id_rsa.pub',
+        'aws' => {
+          'access_key'        => ENV['AWS_ACCESS_KEY'],
+          'secret_access_key' => ENV['AWS_SECRET_ACCESS_KEY'],
+          'keypair_name'      => ENV['AWS_KEYPAIR_NAME'],
+          'ssh_key_path'      => ENV['AWS_SSH_KEY_PATH'] || '~/.ssh/id_rsa',
+          'ami'               => ENV['AWS_AMI'] || 'ami-29ebb519',
+          'username'          => ENV['AWS_USERNAME'] || 'ubuntu',
+          'region'            => ENV['AWS_REGION'] || 'us-west-2',
         },
         'ssh'      => {
           'pty'           => false,
@@ -131,12 +137,10 @@ end
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |vagrant|
   @stack.servers.each do |node, config|
     vagrant.vm.define node do |n|
-      n.vm.box = config['box']
-      n.vm.hostname = "#{config['hostname']}.#{config['domain']}"
+      n.vm.box            = config['box']
+      n.vm.hostname       = "#{config['hostname']}.#{config['domain']}"
       n.ssh.forward_agent = config['ssh']['forward_agent'] || true
-      n.ssh.pty = config['ssh']['pty'] || false
-      @synced_folder_type = ENV['VM_SYNC'] || nil
-      @local_provision    = true
+      n.ssh.pty           = config['ssh']['pty'] || false
 
       n.vm.provider 'vmware_fusion' do |vmware|
         vmware.vmx['memsize']  = config['memory'].to_s
@@ -154,36 +158,34 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |vagrant|
         digitalocean.image            = config['do']['image']
         digitalocean.region           = config['do']['region']
         digitalocean.size             = config['do']['size']
-        @synced_folder_type           = 'rsync'
-        @local_provision              = false
       end
 
-      n.vm.provider 'rackspace' do |rs, override|
-       override.ssh.private_key_path = config['rackspace']['ssh_key_path']
-        rs.username                   = config['rackspace']['username']
-        rs.api_key                    = config['rackspace']['api_key']
-        rs.flavor                     = config['rackspace']['flavor']
-        rs.image                      = config['rackspace']['image']
-        rs.rackspace_region           = config['rackspace']['region']
-        rs.public_key_path            = config['rackspace']['public_key_path']
-        @synced_folder_type           = 'rsync'
-        @local_provision              = false
+      n.vm.provider 'aws' do |aws, override|
+        override.vm.box       = 'dummy'
+        aws.region            = config['aws']['region']
+        aws.access_key_id     = config['aws']['access_key']
+        aws.secret_access_key = config['aws']['secret_access_key']
+        aws.keypair_name      = config['aws']['keypair_name']
+        aws.ami               = config['aws']['ami']
+
+        override.ssh.username = config['aws']['username']
+        override.ssh.private_key_path = config['aws']['ssh_key_path']
       end
 
-      if config.has_key?('private_networks') && @local_provision
+
+      if config.has_key?('private_networks')
         config['private_networks'].each do |nic|
           n.vm.network 'private_network', ip: nic
         end
       end
 
-      # Sync up any file mounts for you, but only on the local machine.
-      # Mounts on server clouds ignore file mounts
-      if config.has_key?('mounts') && @local_provision
+      # Sync up any file mounts for you
+      if config.has_key?('mounts')
         config['mounts'].each do |mount|
           vm_mount, local_mount = mount.split(/:/)
           local_mount ||= [DIR, 'mounts', vm_mount.gsub(/\//, '_')].join('/')
           FileUtils.mkdir_p local_mount
-          n.vm.synced_folder local_mount, vm_mount, type: @synced_folder_type
+          n.vm.synced_folder local_mount, vm_mount, type: config['sync_type']
         end
       end
 
@@ -202,6 +204,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |vagrant|
           # Do not update Gems/Puppetfile/Environments each run
           export generate_all_environments=0
 
+          # Notify this is a development workspace
+          export development=1
+
           # Pass through Debug Commands
           export debug=#{ENV['debug']}
 
@@ -209,9 +214,6 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |vagrant|
           #{config['puppet']['facts'].collect { |k,v| "export FACTER_#{k}=#{v}"}.join("\n")}
           export FACTER_stack=#{@stack.stack}
           /opt/puppet/script/puppet-apply
-
-          sleep 5
-          st2 run packs.load register=all
 EOF
       else
         puts "Unsupported provisioner: #{PROVISIONER}. Skipping..."

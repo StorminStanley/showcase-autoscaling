@@ -10,3 +10,7 @@ shared
 current_environment
 mounts/*
 environments/*
+hieradata/workroom.yaml
+bin/*
+artifacts/*
+.vagrant/*

@@ -1,89 +1,221 @@
-Cloud Autoscaling
+st2workroom
 =========
 
-This project highligts the use of StackStorm in a generic, autoscaling pipeline. It is built off of
-[st2-workroom](https://github.com/StackStorm/st2-workroom) and can be deployed in a local Vagrant
-environment or various cloud providers
+A full fledged development environment for working with StackStorm. This project allows you to:
 
-# Getting Started
+* Spin up a test environment to play with StackStorm (`st2express`)
+* Spin up a development environment to work with StackStorm (`st2dev`)
+* Begin building infrastructure patterns using pre-configured Config Management tools
 
-To try this out, you will need to make a few configuration changes. These are listed below:
+# Requirements:
 
-* Step 1: Configure Packs
-  - All of the necessary configuration exists in the `hieradata/common.yaml` file. Take a peek in there,
-    and fill in any API keys that are left blank.
-* Step 2: Setup SSH Keys
-  - The SSH Key used in this example is pulled from the Key/Value store. You will need to set the `ssh_public_key`
-    parameter. This SSH key should be the same key used by StackStorm to log into remote hosts. 
-  - Set via WebUI: Head to http://<hostname>:9101/webui. Navigate to the `st2.kv.set` action, and enter
-    `ssh_public_key` for the key, and you SSH key for the value
-  - Set via CLI: From the StackStorm server, run the command `st2 key set ssh_public_key "<ssh_key>"`
-* Step 3: Point New Relic to StackStorm
-  - This can only be done via the New Relic Web UI. Log into the website, navigate to Webhooks, and enter
-    http://<hostname>:10001/st2/nrhook
-* Step 4: Create some AutoScale Groups and Rules!
-* Step 5: Profit
+* Vagrant - [version 1.7.2 or higher](https://www.vagrantup.com/downloads.html). (See https://github.com/mitchellh/vagrant/issues/3769)
 
-## Trying it out
-
-If you would like to try this demonstration, the following commands are available to you via ChatOps. You
-will need to invite your bot user to the room you plan on testing. (By default, the room is #bot-testing)
-
-* `!asg create name=XXX domain=YYY` - Creates a new autoscaling group.
-* `!asg node add asg=XXX` - Add a node to an ASG
-* `!asg expand asg=XXX` - Manually expand an ASG
-* `!asg node delete name=ZZZ asg=XXX` - Delete a node and its autoscaling group association
-* `!asg deflate asg=XXX` - Manually deflate an ASG
-* `!asg delete name=XXX` - Delete an ASG and all resources belonging to it
-
-## Overview
+## Project Goals
 
 The goal of this project is to have a workspace that allows you to develop infrastructure in conjuction
 with StackStorm, or even work on the StackStorm product itself. This project also serves as a template
 to be used to begin building out and deploying infrastructure using your favorite Configuration Management
 tool in conjunction with StackStorm
 
-## Autoscaling Process
+Currently, the project has support for the following Config Management Tools:
 
-There are several reasons to leverage an autoscaling cloud. One of the more common use-cases include adding additional capacity due to a surge in demand or failure of existing resources. This is where we set our sights: How could StackStorm help facilitate the management of additional capacity when needed? So, we broke down the problem into the smallest components, and set our sights on potential solutions. In short, it broke down to a few phases...
+* Puppet
 
-* Phase 0: Setting up an autoscaling group
-* Phase 1: Systems Failing
-* Phase 2: Monitor the Situation
-* Phase 3: Recover and Stand Down
-* Phase 4: Decommission an autoscaling group
+Additional workrooms will be created for the following languages:
 
-In Phase 1, StackStorm would receive an event from a monitoring system, in this case New Relic. The monitoring system should tell us what application or infrastructure component is impacted, and how it is impacted (is it a warning alert in that the system has some time to respond before things go poorly, or are we already in a critical scenario where immediate action is needed?). From Phase 1, systems are provisioned in order to alleviate pressure. This phase may also include some escalation policies to let folks know of the situation.
+* Chef
+* Ansible
+* Salt
 
-Phase 2 deals with attempting to quantify the recovery state of an application. A critical incident may still be underway, but at this point additional resources are allocated to manage the load. During this phase, StackStorm needs to stay on top of things to make sure that if another tipping point is reached with resources that it is ready to provide additional relief as necessary. Likewise, StackStorm needs to be smart enough to know when an event has ceased, and when things can start cooling down.
+## Usage
+### st2express
 
-Phase 3 is all about cleanup. An event is over, and now it's time to return to normal. StackStorm needs to have an understanding of what normal means, and how to safely get there with minimal to no disruption on the part of users.
+st2express is used to spin up a test StackStorm instance. To start, simply type the following command:
 
-We started our exploration detailing how we imagined the autoscaling workflow would be executed, and added creation and deletion actions on both ends of the process to ensure completeness. In the interest of brevity, a ton of details have been omitted. Those more inclined to dig into additional details can find more about our thought processes and how we put this together can take a look at https://gist.github.com/jfryman/2345a6c6b1abb312d8cb. The key takeaway though is that we were able to abstractly discuss the logic of how we expected the workflow to run without ever discussing tooling, which in turn allowed us to identify more  This allowed us to better understand what data from our tools that we might need while integrating with the different parts of the stack.
+```
+  vagrant up st2express
+```
 
-## Architecture and Integrations
+This will automatically provision a new StackStorm server. If you have Bonjour/Zeroconf enabled on your
+machine, the WebUI will be available at http://st2express.local:8080/
 
-At an abstract level, the workflow is very easy. But, the devil is always in the details, and with autoscaling this is doubly so. We needed to break down all the individual components used to create a new system ready to process requests and start building integrations for them. Considering the full lifecycle of a machine, we needed to:
+To SSH into the machine, simply type the following command:
 
-* Provisioning new VMs
-* Register a VM with DNS
-* Applying configuration profiles to new machines
-* Receive notifications that an application is misbehaving
-* Receive notifications that an application has recovered
-* Add nodes to load balancer
-* Remove nodes from load balancer
-* Removing a VM from DNS
-* Destroying a VM
+```
+  vagrant ssh st2express
+```
 
-So, let's walk through how it all works.
+NOTE: In the event you receive an error related to IP conflict, Edit the `private_neworks` address in `stacks/st2.yaml`, and adjust the third octet to a non-conflicting value. For example:
 
-![architecture_diagram](https://cloud.githubusercontent.com/assets/20028/6277282/339edbda-b842-11e4-9638-750dda437ab6.jpg)
+```
+st2express:
+  ...
+    private_networks:
+        - 172.168.50.10
+```
 
-To begin with, we have a set of actions that is responsible for Phase 0: Setting up a new Auto-Scaling group. This process is responsible for creating a new association within StackStorm, and deciding what flavor/size of cloud compute nodes that will be set-up. These values are all stored in StackStorm's internal datastore. https://github.com/StackStorm/st2incubator/blob/master/packs/autoscale/actions/workflows/asg_create.yaml
+The third octet is now set to `50` as opposed to `100`, the default value. Once changed, reload vagrant with the `vagrant reload` command.
 
-Then, we wait. At some point, our application will fail. In our case, we even developed a fun new application that allows us to simulate App and Server errors. New Relic has four events that we're going to keep an eye out for - looking to see if an application or server has entered a critical state, and the corresponding recovery event. These events are sent to StackStorm via NewRelic's WebHook API, and processed as triggers, and then matched to rules like this: https://raw.githubusercontent.com/StackStorm/st2incubator/master/packs/autoscale/rules/newrelic_failure_alert.yaml.
 
-Depending on the received event (Alert/Recovery), things go into action. In the event of a alert, StackStorm will set the alert state for the given application to 'Active'. This is used with the governor which I'll touch upon in a moment. Then, StackStorm jumps into action by kicking off adding as many new nodes to our Autoscale group as we specified at creation. This workflow is responsible for adding additional nodes, making sure they have been provisioned with Chef, and also adding the nodes to DNS and the Load Balancer. Finally, as all of these events fire, we send out ChatOps notifications to Slack to keep all the admins informed about what is happening within StackStorm. This workflow is articulated at https://github.com/StackStorm/st2incubator/blob/master/packs/autoscale/actions/workflows/asg_add_node.yaml.
+### st2dev
 
-All the while, another internal sensor that we call a TimerSensor is running, polling every 30 seconds. Each interval, the governor looks at the state of all AutoScale group alert statuses to decide whether or not additional nodes need to be created and added to the autoscale group. It does this by looking for any AutoScale groups that are in alert state, and attempts to add additional capacity if the right conditions are met. A sort of blunt sword throttling is in place for the first pass - the governor evaluates the time since the last scale event and responds accordingly. The same logic happens in reverse, but at a much slower rate (longer duration between deletions, fewer machines destroyed at a time).
+st2dev is used as a clean room environment to develop StackStorm against. This machine downloads all
+the necessary dependencies, as well as Mistral.
 
+To start the machine, simply type the following command
+
+```
+  vagrant up st2dev
+```
+
+To SSH into the machine, simply type the following command:
+
+```
+  vagrant ssh st2dev
+```
+
+### st2factory
+
+st2factory is used as a clean image to build artifacts for distribution (vagrant and docker). This
+machine will download docker and packer in the VM for rapid development.
+
+To build an image with `st2factory`, do the following.
+
+```
+  script/build-container
+```
+
+This script will automatically boot the `st2factory` image, and begin building artifacts. In addition,
+you may need to set some environment variables. You can do this using `dotenv`, or within your shell.
+
+Environment variables:
+* `role` - Puppet role to build in a container (required)
+* `environment` - Puppet environment to build in a container (default: `current_working_directory`)
+* `debug` - Set this to any value to enable debug (default: `false`)
+* `docker_repository` - Name of repository to upload (e.g.: stackstorm/base. required)
+* `docker_image` - Name of image used as baseline for containers (default: `ubuntu:14.04`)
+* `docker_tag` - Version to tag `docker_repository`. (required)
+* `docker_login_email` - email address associated with Docker Registry account (required)
+* `docker_login_username` - username associated with Docker Registry account (required)
+* `docker_login_password` - password associated with Docker Registry account (required)
+* `docker_login_server` - Docker Registry to connect to (default: Docker Hub)
+
+## Configuration
+### Virtual Machine configuration
+In the event you would like to develop or test a different target machine, or need to change the
+number of CPUs/RAM... all of these settings are configured in `stacks/st2.yaml`. Take a look at
+the `defaults` section and adjust accordingly.
+
+### ChatOps
+
+By default, both `st2express` and `st2dev` come with installed copies of Hubot. This is to allow
+local testing of ChatOps. To configure Hubot, simply take a look at the file `hieradata/workroom.yaml`.
+You will see all of the configuration commented out. To setup Hubot to automatically connect to an
+IRC room, for example, simply set the following values in `hieradata/workroom.yaml`
+
+```
+hubot::adapter: irc
+hubot::chat_alias: !
+hubot::env_export:
+  HUBOT_LOG_LEVEL: DEBUG
+  HUBOT_IRC_SERVER: "irc.freenode.net"
+  HUBOT_IRC_ROOMS: "#stackstorm"
+  HUBOT_IRC_NICK: "hubot-stanley"
+  HUBOT_IRC_UNFLOOD: true
+hubot::dependencies:
+  hubot: ">= 2.6.0 < 3.0.0"
+  "hubot-scripts": ">= 2.5.0 < 3.0.0"
+  "hubot-irc": ">= 0.2.7"
+```
+
+Installing an existing install of Hubot is equally easy. Simply replace the `hubot::dependencies` key
+with values for `hubot::git_soucre` and `hubot::ssh_privatekey`. For exapmle, in `hieradata/workroom.yaml`:
+
+```
+hubot::adapter: slack
+hubot::chat_alias: "!"
+hubot::git_source: "git@github.com:StackStorm/hubot-stanley.git"
+hubot::ssh_privatekey: "-----BEGIN RSA PRIVATE KEY-----YYY-----END RSA PRIVATE KEY-----"
+hubot::env_export:
+  HUBOT_SLACK_TOKEN: "XXX"
+```
+
+Refer to https://github.com/github/hubot/blob/master/docs/adapters.md for additional information about
+Hubot Adapters
+
+Hubot by default is installed at `/opt/hubot`
+
+### Development Directories
+In the `st2dev` environment, the image makes no attempt to download code for you. Instead, it is
+assumed that most development will be happening on the host machine, and as such you will need to grab
+StackStorm code directly.
+
+Our recommendation: specify a mountpoint in the file `stacks/st2.yaml` under the `st2dev` key. This will
+automatically setup an NFS mount, and makes it easy to do development locally. Learn more about how stacks work
+by reading STACKS.md. For example, here is what it looks like to mount my local StackStorm install:
+
+```yaml
+# stacks/st2.yaml
+---
+st2dev:
+  <<: *defaults
+  hostname: st2dev
+  # Any number of facts available to the server can be set here
+  puppet:
+    facts:
+      role: st2dev
+  mounts:
+    - "/mnt/st2:/Users/jfryman/stackstorm/st2"
+```
+
+NOTE: You may be asked for permission to make modifications to the Host's `/etc/exports` file.
+
+### Adding Users
+By default, the `stanley` user is added to both the `st2express` and `st2dev` roles. This
+user is installed with default SSH keys that are insecure and not meant to be used in
+production. If you would like to change these keys, take a look at the `st2::stanley`
+keys located in `hieradata/workroom.yaml`
+
+For example, to change the SSH Keys for the `stanley` user:
+
+```
+# hieradata/workroom.yaml
+st2::stanley::ssh_public_key: XXXXXX
+st2::stanley::ssh_key_type: ssh-rsa
+st2::stanley::ssh_private_key: XXXXXX
+```
+
+
+However, there may exist times where you want to add a local user to the box. To do
+this, simply add an entry to `hieradata/workroom.yaml` under the `users` key.
+
+For example, to add a new user, simply:
+
+```
+# hieradata/workroom.yaml
+users:
+  manas:
+    uid: 700
+    gid: 700
+    sshkey: XXXXXX
+    sshkeytype: ssh-rsa
+    shell: /bin/bash
+    admin: true
+```
+
+## Known Issues
+
+Unfortunately, as seamless as we attemt to make this project, there are a few issues that we cannot code around. But, they're easy enough to fix, and your solution might be listed below.
+
+### IP Conflicts
+In the event you receive an error related to IP conflict, Edit the `private_neworks` address in `stacks/st2.yaml`, and adjust the third octet to a non-conflicting value. For example:
+
+```
+st2express:
+  ...
+    private_networks:
+        - 172.168.50.10
+```
+
+The third octet is now set to `50` as opposed to `100`, the default value. Once changed, reload vagrant with the `vagrant reload` command.

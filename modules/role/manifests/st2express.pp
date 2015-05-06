@@ -1,7 +1,10 @@
 class role::st2express {
-  include ::st2::profile::fullinstall
+  include ::profile::st2server
+  include ::profile::users
 
-  package { 'wamerican':
-    ensure => present,
+  if $::osfamily == 'RedHat' and $::operatingsystemmajrelease == '6' {
+    notify { 'Hubot is not supported on this platform': }
+  } else {
+    include ::profile::hubot
   }
 }

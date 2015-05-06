@@ -2,6 +2,9 @@
 
 PROJECT_ROOT=/opt/puppet
 NODE=$(hostname -s);
+BUNDLER_ARGS=""
+
+export PATH=/usr/local/bin:$PATH
 
 cd $PROJECT_ROOT
 
@@ -16,8 +19,13 @@ if [ "$debug" = "1" ]; then
   RSYNC_DEBUG_ARGS="-v"
 fi
 
+
 # Install necessary gems
 if [ "$cache_libraries" = "1" ]; then
+  if [ "$development" != "1" ]; then
+    BUNDLER_ARGS="--deployment --binstubs --without development"
+  fi
+
   # Check locally to see if the Puppetfile has been
   # updated, and then update if so.
   if [ ! -f .bundler ]; then
@@ -28,11 +36,11 @@ if [ "$cache_libraries" = "1" ]; then
   CURRENT_SHA=$(git hash-object Gemfile)
   if [ "$OLD_SHA" != "$CURRENT_SHA" ]; then
     echo "Need to update bundled gems..."
-    bundle install --path vendor/bundle
+    bundle install --path vendor/bundle $BUNDLER_ARGS
     echo $CURRENT_SHA > .bundler
   fi
 else
-  bundle install --path vendor/bundle
+  bundle install --path vendor/bundle $BUNDLER_ARGS
 fi
 
 # Deploy Environments from upstream
@@ -94,6 +102,11 @@ fi
 ## Make graph directory for output and debug
 if [ ! -d $PROJECT_ROOT/graphs/${NODE} ]; then
   mkdir -p $PROJECT_ROOT/graphs/${NODE}
+fi
+
+## Make sure apt is up-to-date if a Debian box
+if [ -e /usr/bin/apt-get ]; then
+  apt-get update
 fi
 
 puppet apply $PUPPET_DEBUG_ARGS --verbose --environment $environment \

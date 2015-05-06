@@ -1,6 +1,7 @@
 ---
 classes:
-  - profile::vagrant
+  - 'profile::vagrant'
+
 puppet::masterless::cron: false
 sudo::configs:
   vagrant:
