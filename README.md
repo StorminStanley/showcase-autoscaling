@@ -13,11 +13,11 @@ To try this out, you will need to make a few configuration changes. These are li
   - All of the necessary configuration exists in the `hieradata/common.yaml` file. Take a peek in there,
     and fill in any API keys that are left blank.
 * Step 2: Setup SSH Keys
-  - The SSH Key used in this example is pulled from the Key/Value store. You will need to set the `ssh_public_key`
+  - The SSH Key used in this example is pulled from the Key/Value store. You will need to set the `ssh_pub_key`
     parameter. This SSH key should be the same key used by StackStorm to log into remote hosts. 
   - Set via WebUI: Head to http://<hostname>:9101/webui. Navigate to the `st2.kv.set` action, and enter
-    `ssh_public_key` for the key, and you SSH key for the value
-  - Set via CLI: From the StackStorm server, run the command `st2 key set ssh_public_key "<ssh_key>"`
+    `ssh_pub_key` for the key, and you SSH key for the value
+  - Set via CLI: From the StackStorm server, run the command `st2 key set ssh_pub_key "<ssh_key>"`
 * Step 3: Point New Relic to StackStorm
   - This can only be done via the New Relic Web UI. Log into the website, navigate to Webhooks, and enter
     http://<hostname>:10001/st2/nrhook
@@ -35,6 +35,8 @@ will need to invite your bot user to the room you plan on testing. (By default, 
 * `!asg node delete name=ZZZ asg=XXX` - Delete a node and its autoscaling group association
 * `!asg deflate asg=XXX` - Manually deflate an ASG
 * `!asg delete name=XXX` - Delete an ASG and all resources belonging to it
+* `!asg simulate crit` - Simulate NewRelic critical event for the application named `Default application`.
+* `!asg simulate recovery` - Simulate NewRelic recovery event for the application named `Default application`.
 
 ## Overview
 
